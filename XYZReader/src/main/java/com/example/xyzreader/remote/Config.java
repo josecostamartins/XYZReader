@@ -11,6 +11,7 @@ public class Config {
         try {
 //            url = new URL("https://dl.dropboxusercontent.com/u/231329/xyzreader_data/data.json" );
             url = new URL("https://raw.githubusercontent.com/josecostamartins/dump/master/Lego/data.json");
+//            url = new URL("https://go.udacity.com/xyz-reader-json" );
         } catch (MalformedURLException ignored) {
             // TODO: throw a real error
         }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- res/values-v19/styles.xml -->
+    <style name="Theme.Reader.Detail" parent="Theme.Reader">
+        <item name="android:windowTranslucentStatus">true</item>
+    </style>
+</resources>
