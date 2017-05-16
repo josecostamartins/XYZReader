@@ -6,7 +6,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.Loader;
+import android.content.res.Configuration;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.media.Image;
 import android.os.Bundle;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
@@ -14,16 +17,18 @@ import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.support.v7.widget.Toolbar;
 import android.text.format.DateUtils;
-import android.util.TypedValue;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.example.xyzreader.R;
 import com.example.xyzreader.data.ArticleLoader;
 import com.example.xyzreader.data.ItemsContract;
 import com.example.xyzreader.data.UpdaterService;
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Transformation;
 
 /**
  * An activity representing a list of Articles. This activity has different presentations for
@@ -34,9 +39,12 @@ import com.example.xyzreader.data.UpdaterService;
 public class ArticleListActivity extends ActionBarActivity implements
         LoaderManager.LoaderCallbacks<Cursor> {
 
+
     private Toolbar mToolbar;
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private RecyclerView mRecyclerView;
+    private Context mContext = ArticleListActivity.this;
+    private boolean invalidate = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,7 +106,7 @@ public class ArticleListActivity extends ActionBarActivity implements
 
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
-        Adapter adapter = new Adapter(cursor);
+        Adapter adapter = new Adapter(cursor, mContext);
         adapter.setHasStableIds(true);
         mRecyclerView.setAdapter(adapter);
         int columnCount = getResources().getInteger(R.integer.list_column_count);
@@ -114,9 +122,14 @@ public class ArticleListActivity extends ActionBarActivity implements
 
     private class Adapter extends RecyclerView.Adapter<ViewHolder> {
         private Cursor mCursor;
+        private Context mContext;
 
-        public Adapter(Cursor cursor) {
+        public Adapter(Cursor cursor, Context context) {
             mCursor = cursor;
+            mContext = context;
+
+            if (mCursor == null) throw new NullPointerException("Cursor can't be null");
+            if (mContext == null) throw new NullPointerException("Context can' be null");
         }
 
         @Override
@@ -140,7 +153,7 @@ public class ArticleListActivity extends ActionBarActivity implements
         }
 
         @Override
-        public void onBindViewHolder(ViewHolder holder, int position) {
+        public void onBindViewHolder(final ViewHolder holder, int position) {
             mCursor.moveToPosition(position);
             holder.titleView.setText(mCursor.getString(ArticleLoader.Query.TITLE));
             holder.subtitleView.setText(
@@ -150,6 +163,39 @@ public class ArticleListActivity extends ActionBarActivity implements
                             DateUtils.FORMAT_ABBREV_ALL).toString()
                             + " by "
                             + mCursor.getString(ArticleLoader.Query.AUTHOR));
+
+            if (invalidate){
+                Picasso.with(mContext).invalidate(mCursor.getString(ArticleLoader.Query.THUMB_URL));
+            }
+
+//            Transformation transformation = new Transformation() {
+//
+//                @Override
+//                public Bitmap transform(Bitmap source) {
+//                    int targetWidth = holder.thumbnailView.getWidth();
+//
+//                    double aspectRatio = (double) source.getHeight() / (double) source.getWidth();
+//                    int targetHeight = (int) (targetWidth * aspectRatio);
+//                    Bitmap result = Bitmap.createScaledBitmap(source, targetWidth, targetHeight, false);
+//                    if (result != source) {
+//                        // Same bitmap is returned if sizes are the same
+//                        source.recycle();
+//                    }
+//                    return result;
+//                }
+//
+//                @Override
+//                public String key() {
+//                    return "transformation" + " desiredWidth";
+//                }
+//            };
+//
+//
+//            Picasso.with(mContext)
+//                    .load(mCursor.getString(ArticleLoader.Query.THUMB_URL))
+//                    .transform(transformation)
+//                    .into(holder.thumbnailView);
+
             holder.thumbnailView.setImageUrl(
                     mCursor.getString(ArticleLoader.Query.THUMB_URL),
                     ImageLoaderHelper.getInstance(ArticleListActivity.this).getImageLoader());
