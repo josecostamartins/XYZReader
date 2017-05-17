@@ -1,5 +1,6 @@
 package com.example.xyzreader.ui;
 
+import android.app.ActivityOptions;
 import android.app.LoaderManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -10,13 +11,17 @@ import android.content.res.Configuration;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.media.Image;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.app.ActivityOptionsCompat;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.StaggeredGridLayoutManager;
 import android.support.v7.widget.Toolbar;
 import android.text.format.DateUtils;
+import android.transition.Explode;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -36,7 +41,7 @@ import com.squareup.picasso.Transformation;
  * touched, lead to a {@link ArticleDetailActivity} representing item details. On tablets, the
  * activity presents a grid of items as cards.
  */
-public class ArticleListActivity extends ActionBarActivity implements
+public class ArticleListActivity extends AppCompatActivity implements
         LoaderManager.LoaderCallbacks<Cursor> {
 
 
@@ -53,6 +58,12 @@ public class ArticleListActivity extends ActionBarActivity implements
 
         mToolbar = (Toolbar) findViewById(R.id.toolbar);
 
+        // set an exit transition
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            Explode explode = new Explode();
+            explode.setDuration(getResources().getInteger(R.integer.list_column_count));
+            getWindow().setExitTransition(explode);
+        }
 
         final View toolbarContainerView = findViewById(R.id.toolbar_container);
 
@@ -142,13 +153,6 @@ public class ArticleListActivity extends ActionBarActivity implements
         public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
             View view = getLayoutInflater().inflate(R.layout.list_item_article, parent, false);
             final ViewHolder vh = new ViewHolder(view);
-            view.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    startActivity(new Intent(Intent.ACTION_VIEW,
-                            ItemsContract.Items.buildItemUri(getItemId(vh.getAdapterPosition()))));
-                }
-            });
             return vh;
         }
 
@@ -164,9 +168,9 @@ public class ArticleListActivity extends ActionBarActivity implements
                             + " by "
                             + mCursor.getString(ArticleLoader.Query.AUTHOR));
 
-            if (invalidate){
-                Picasso.with(mContext).invalidate(mCursor.getString(ArticleLoader.Query.THUMB_URL));
-            }
+//            if (invalidate){
+//                Picasso.with(mContext).invalidate(mCursor.getString(ArticleLoader.Query.THUMB_URL));
+//            }
 
 //            Transformation transformation = new Transformation() {
 //
@@ -196,10 +200,31 @@ public class ArticleListActivity extends ActionBarActivity implements
 //                    .transform(transformation)
 //                    .into(holder.thumbnailView);
 
+
             holder.thumbnailView.setImageUrl(
                     mCursor.getString(ArticleLoader.Query.THUMB_URL),
                     ImageLoaderHelper.getInstance(ArticleListActivity.this).getImageLoader());
             holder.thumbnailView.setAspectRatio(mCursor.getFloat(ArticleLoader.Query.ASPECT_RATIO));
+            holder.itemView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    long adapterPosition = getItemId(holder.getAdapterPosition());
+                    Intent intent = new Intent(Intent.ACTION_VIEW,
+                            ItemsContract.Items.buildItemUri(adapterPosition));
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+
+                        holder.thumbnailView.setTransitionName(String.valueOf(adapterPosition));
+                        Bundle bundle = ActivityOptionsCompat
+                                .makeSceneTransitionAnimation(ArticleListActivity.this,
+                                        holder.thumbnailView, holder.thumbnailView.getTransitionName())
+                                .toBundle();
+                        startActivity(intent, bundle);
+                    } else {
+                        startActivity(intent);
+                    }
+                }
+            });
         }
 
         @Override

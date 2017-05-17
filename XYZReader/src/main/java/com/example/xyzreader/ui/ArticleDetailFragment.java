@@ -1,5 +1,7 @@
 package com.example.xyzreader.ui;
 
+import android.animation.Animator;
+import android.animation.ObjectAnimator;
 import android.app.Fragment;
 import android.app.LoaderManager;
 import android.content.Intent;
@@ -10,9 +12,12 @@ import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
+import android.os.Build;
 import android.os.Bundle;
 
 import android.support.v4.app.ShareCompat;
+import android.support.v4.widget.NestedScrollView;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.graphics.Palette;
 import android.text.Html;
 import android.text.format.DateUtils;
@@ -21,6 +26,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -28,6 +34,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.ImageLoader;
 import com.example.xyzreader.R;
 import com.example.xyzreader.data.ArticleLoader;
+import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
 import net.opacapp.multilinecollapsingtoolbar.CollapsingToolbarLayout;
@@ -38,7 +45,7 @@ import net.opacapp.multilinecollapsingtoolbar.CollapsingToolbarLayout;
  * tablets) or a {@link ArticleDetailActivity} on handsets.
  */
 public class ArticleDetailFragment extends Fragment implements
-        LoaderManager.LoaderCallbacks<Cursor> {
+        LoaderManager.LoaderCallbacks<Cursor>, AnimationListener {
     private static final String TAG = "ArticleDetailFragment";
 
     public static final String ARG_ITEM_ID = "item_id";
@@ -47,12 +54,14 @@ public class ArticleDetailFragment extends Fragment implements
     private Cursor mCursor;
     private long mItemId;
     private View mRootView;
+    private View mockView;
+    private NestedScrollView nestedScrollView;
     private int mMutedColor = 0xFF333333;
     private ObservableScrollView mScrollView;
     private DrawInsetsFrameLayout mDrawInsetsFrameLayout;
     private ColorDrawable mStatusBarColorDrawable;
 
-//    private int mTopInset;
+    private int mTopInset;
     private View mPhotoContainerView;
     private ImageView mPhotoView;
     private int mScrollY = 0;
@@ -81,6 +90,8 @@ public class ArticleDetailFragment extends Fragment implements
         if (getArguments().containsKey(ARG_ITEM_ID)) {
             mItemId = getArguments().getLong(ARG_ITEM_ID);
         }
+
+        getActivityCast().animationNotifier(this);
 
         mIsCard = getResources().getBoolean(R.bool.detail_is_card);
         mStatusBarFullOpacityBottom = getResources().getDimensionPixelSize(
@@ -131,6 +142,8 @@ public class ArticleDetailFragment extends Fragment implements
         mPhotoContainerView = mRootView.findViewById(R.id.photo_container);
 
 //        mStatusBarColorDrawable = new ColorDrawable(0);
+        mockView = mRootView.findViewById(R.id.sw600_land_view);
+        nestedScrollView = (NestedScrollView) mRootView.findViewById(R.id.nested_scroll_view);
 
         mRootView.findViewById(R.id.share_fab).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -147,6 +160,36 @@ public class ArticleDetailFragment extends Fragment implements
         return mRootView;
     }
 
+    private void updateStatusBar() {
+        int color = 0;
+        if (mPhotoView != null && mTopInset != 0 && mScrollY > 0) {
+            float f = progress(mScrollY,
+                    mStatusBarFullOpacityBottom - mTopInset * 3,
+                    mStatusBarFullOpacityBottom - mTopInset);
+            color = Color.argb((int) (255 * f),
+                    (int) (Color.red(mMutedColor) * 0.9),
+                    (int) (Color.green(mMutedColor) * 0.9),
+                    (int) (Color.blue(mMutedColor) * 0.9));
+        }
+        mStatusBarColorDrawable.setColor(color);
+        mDrawInsetsFrameLayout.setInsetBackground(mStatusBarColorDrawable);
+    }
+
+    static float progress(float v, float min, float max) {
+        return constrain((v - min) / (max - min), 0, 1);
+    }
+
+    static float constrain(float val, float min, float max) {
+        if (val < min) {
+            return min;
+        } else if (val > max) {
+            return max;
+        } else {
+            return val;
+        }
+    }
+
+
     private void bindViews() {
         if (mRootView == null) {
             return;
@@ -155,7 +198,7 @@ public class ArticleDetailFragment extends Fragment implements
         TextView titleView = (TextView) mRootView.findViewById(R.id.article_title);
         TextView bylineView = (TextView) mRootView.findViewById(R.id.article_byline);
         bylineView.setMovementMethod(new LinkMovementMethod());
-        TextView bodyView = (TextView) mRootView.findViewById(R.id.article_body);
+        final TextView bodyView = (TextView) mRootView.findViewById(R.id.article_body);
 //        CollapsingToolbarLayout collapsingToolbar =
 //                (CollapsingToolbarLayout) mRootView.findViewById(R.id.collapsing_toolbar);
 //        TextView articleSubtitle = (TextView) mRootView.findViewById(R.id.article_subtitle);
@@ -186,43 +229,48 @@ public class ArticleDetailFragment extends Fragment implements
                             + mCursor.getString(ArticleLoader.Query.AUTHOR)
                             + "</font>"));
 
-            String articleBody = mCursor.getString(ArticleLoader.Query.BODY);
 
-            if (articleBody == null || articleBody.equalsIgnoreCase("")){
-                articleBody = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. \n" +
-                        "\n" +
-                        "Curabitur sodales ligula in libero. Sed dignissim lacinia nunc. Curabitur tortor. Pellentesque nibh. Aenean quam. In scelerisque sem at dolor. Maecenas mattis. Sed convallis tristique sem. Proin ut ligula vel nunc egestas porttitor. Morbi lectus risus, iaculis vel, suscipit quis, luctus non, massa. Fusce ac turpis quis ligula lacinia aliquet. Mauris ipsum. \n" +
-                        "\n" +
-                        "Nulla metus metus, ullamcorper vel, tincidunt sed, euismod in, nibh. Quisque volutpat condimentum velit. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nam nec ante. Sed lacinia, urna non tincidunt mattis, tortor neque adipiscing diam, a cursus ipsum ante quis turpis. Nulla facilisi. Ut fringilla. Suspendisse potenti. Nunc feugiat mi a tellus consequat imperdiet. Vestibulum sapien. Proin quam. Etiam ultrices. Suspendisse in justo eu magna luctus suscipit. \n" +
-                        "\n" +
-                        "Sed lectus. Integer euismod lacus luctus magna. Quisque cursus, metus vitae pharetra auctor, sem massa mattis sem, at interdum magna augue eget diam. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Morbi lacinia molestie dui. Praesent blandit dolor. Sed non quam. In vel mi sit amet augue congue elementum. Morbi in ipsum sit amet pede facilisis laoreet. Donec lacus nunc, viverra nec, blandit vel, egestas et, augue. Vestibulum tincidunt malesuada tellus. Ut ultrices ultrices enim. Curabitur sit amet mauris. Morbi in dui quis est pulvinar ullamcorper. \n" +
-                        "\n" +
-                        "Nulla facilisi. Integer lacinia sollicitudin massa. Cras metus. Sed aliquet risus a tortor. Integer id quam. Morbi mi. Quisque nisl felis, venenatis tristique, dignissim in, ultrices sit amet, augue. Proin sodales libero eget ante. Nulla quam. Aenean laoreet. Vestibulum nisi lectus, commodo ac, facilisis ac, ultricies eu, pede. Ut orci risus, accumsan porttitor, cursus quis, aliquet eget, justo. Sed pretium blandit orci. Ut eu diam at pede suscipit sodales. ";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                mPhotoView.setTransitionName(String.valueOf(mCursor.getLong(ArticleLoader.Query._ID)));
             }
+            bodyView.setText(Html.fromHtml(mCursor.getString(ArticleLoader.Query.BODY)));
+//            bodyView.setText("Small text to load transitions smoothly!");
 
-            bodyView.setText(Html.fromHtml(articleBody));
             Picasso.with(getActivity())
                     .load(mCursor.getString(ArticleLoader.Query.PHOTO_URL))
-                    .into(mPhotoView);
-//            ImageLoaderHelper.getInstance(getActivity()).getImageLoader()
-//                    .get(mCursor.getString(ArticleLoader.Query.PHOTO_URL), new ImageLoader.ImageListener() {
-//                        @Override
-//                        public void onResponse(ImageLoader.ImageContainer imageContainer, boolean b) {
-//                            Bitmap bitmap = imageContainer.getBitmap();
-//                            if (bitmap != null) {
+                    .into(mPhotoView, new Callback() {
+                        @Override
+                        public void onSuccess() {
+                            scheduleStartPostponedTransition(mPhotoView);
+                        }
+
+                        @Override
+                        public void onError() {
+
+                        }
+                    });
+            /*ImageLoaderHelper.getInstance(getActivity()).getImageLoader()
+                    .get(mCursor.getString(ArticleLoader.Query.PHOTO_URL), new ImageLoader.ImageListener() {
+                        @Override
+                        public void onResponse(ImageLoader.ImageContainer imageContainer, boolean b) {
+                            Bitmap bitmap = imageContainer.getBitmap();
+                            if (bitmap != null) {
+                                mPhotoView.setImageBitmap(imageContainer.getBitmap());
 //                                Palette p = Palette.generate(bitmap, 12);
 //                                mMutedColor = p.getDarkMutedColor(0xFF333333);
-//                                mPhotoView.setImageBitmap(imageContainer.getBitmap());
-////                                mRootView.findViewById(R.id.meta_bar)
-////                                        .setBackgroundColor(mMutedColor);
-//                            }
-//                        }
-//
-//                        @Override
-//                        public void onErrorResponse(VolleyError volleyError) {
-//
-//                        }
-//                    });
+//                                mRootView.findViewById(R.id.meta_bar)
+//                                        .setBackgroundColor(mMutedColor);
+
+                                ///start transition
+                                scheduleStartPostponedTransition(mPhotoView);
+
+                            }
+                        }
+                        @Override
+                        public void onErrorResponse(VolleyError volleyError) {
+
+                        }
+                    });*/
         } else {
             mRootView.setVisibility(View.GONE);
             titleView.setText("N/A");
@@ -258,7 +306,7 @@ public class ArticleDetailFragment extends Fragment implements
     @Override
     public void onLoaderReset(Loader<Cursor> cursorLoader) {
         mCursor = null;
-        bindViews();
+//        bindViews();
     }
 
     public int getUpButtonFloor() {
@@ -270,5 +318,29 @@ public class ArticleDetailFragment extends Fragment implements
         return mIsCard
                 ? (int) mPhotoContainerView.getTranslationY() + mPhotoView.getHeight() - mScrollY
                 : mPhotoView.getHeight() - mScrollY;
+    }
+
+    private void scheduleStartPostponedTransition(final View sharedElement) {
+        sharedElement.getViewTreeObserver().addOnPreDrawListener(
+                new ViewTreeObserver.OnPreDrawListener() {
+                    @Override
+                    public boolean onPreDraw() {
+                        sharedElement.getViewTreeObserver().removeOnPreDrawListener(this);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            getActivity().startPostponedEnterTransition();
+                        }
+                        return true;
+                    }
+                });
+    }
+
+    @Override
+    public void onEnterAnimationComplete() {
+        if (mockView == null) return;
+
+        final int startScrollPos =  getResources()
+                .getDimensionPixelSize(R.dimen.custom_animation_pull_up);
+        Animator animator = ObjectAnimator.ofInt(nestedScrollView, "scrollY", startScrollPos).setDuration(300);
+        animator.start();
     }
 }

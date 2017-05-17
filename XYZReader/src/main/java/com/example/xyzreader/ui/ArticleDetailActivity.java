@@ -8,9 +8,9 @@ import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.v13.app.ActivityCompat;
 import android.support.v13.app.FragmentStatePagerAdapter;
 import android.support.v4.view.ViewPager;
-import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.AppCompatActivity;
 import android.util.TypedValue;
 import android.view.View;
@@ -39,6 +39,8 @@ public class ArticleDetailActivity extends AppCompatActivity
     private View mUpButtonContainer;
     private View mUpButton;
 
+    private AnimationListener animationListener;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -48,6 +50,7 @@ public class ArticleDetailActivity extends AppCompatActivity
                             View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
         }
         setContentView(R.layout.activity_article_detail);
+
 
         getLoaderManager().initLoader(0, null, this);
 
@@ -83,7 +86,11 @@ public class ArticleDetailActivity extends AppCompatActivity
         mUpButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                onSupportNavigateUp();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    finishAfterTransition();
+                } else {
+                    onSupportNavigateUp();
+                }
             }
         });
 
@@ -106,6 +113,8 @@ public class ArticleDetailActivity extends AppCompatActivity
                 mSelectedItemId = mStartId;
             }
         }
+
+        ActivityCompat.postponeEnterTransition(ArticleDetailActivity.this);
     }
 
     @Override
@@ -171,5 +180,19 @@ public class ArticleDetailActivity extends AppCompatActivity
         public int getCount() {
             return (mCursor != null) ? mCursor.getCount() : 0;
         }
+    }
+
+    public long getmSelectedItemId() {
+        return mSelectedItemId;
+    }
+
+    @Override
+    public void onEnterAnimationComplete(){
+        super.onEnterAnimationComplete();
+        animationListener.onEnterAnimationComplete();
+    }
+
+    public void animationNotifier(AnimationListener animationListener){
+        this.animationListener = animationListener;
     }
 }

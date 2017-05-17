@@ -14,4 +14,6 @@
     <dimen name="detail_metabar_title_bottom_padding">4dp</dimen>
     <dimen name="detail_body_top_margin">32dp</dimen>
     <dimen name="detail_body_bottom_margin">88dp</dimen>
+    <integer name="transition_duration">300</integer>
+
 </resources>
