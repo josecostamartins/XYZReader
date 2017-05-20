@@ -61,7 +61,7 @@
                 android:background="@color/white"
                 android:clipToPadding="false"
                 android:paddingBottom="28dp"
-                android:paddingTop="@dimen/list_side_margin"
+                android:paddingTop="16dp"
                 android:paddingLeft="@dimen/list_side_margin"
                 android:paddingRight="@dimen/list_side_margin"
                 android:scrollbarStyle="outsideOverlay" />
