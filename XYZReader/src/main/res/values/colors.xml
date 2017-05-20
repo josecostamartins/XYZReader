@@ -22,7 +22,7 @@
     <color name="theme_primary_dark">#000000</color>
     <color name="theme_primary_light">#484848</color>
     <!--<color name="theme_primary_dark">#1C344C</color>-->
-    <color name="theme_accent">#d84315</color>
+    <color name="theme_accent">#ff3d00</color>
     <color name="ltgray">#ffe0e0e0</color>
     <color name="black">#000000</color>
     <color name="light_black">#333333</color>
