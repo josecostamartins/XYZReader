@@ -3,6 +3,7 @@ package com.example.xyzreader.ui;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.LoaderManager;
+import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
 import android.graphics.drawable.ColorDrawable;
@@ -10,16 +11,24 @@ import android.os.Build;
 import android.os.Bundle;
 import android.support.v13.app.ActivityCompat;
 import android.support.v13.app.FragmentStatePagerAdapter;
+import android.support.v4.app.SharedElementCallback;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
+import android.widget.ImageView;
 
 import com.example.xyzreader.R;
 import com.example.xyzreader.data.ArticleLoader;
 import com.example.xyzreader.data.ItemsContract;
+
+import java.util.List;
+import java.util.Map;
+
+import static com.example.xyzreader.ui.ArticleListActivity.EXTRA_CURRENT_ALBUM_POSITION;
+import static com.example.xyzreader.ui.ArticleListActivity.EXTRA_STARTING_ALBUM_POSITION;
 
 /**
  * An activity representing a single Article detail screen, letting you swipe between articles.
@@ -41,6 +50,9 @@ public class ArticleDetailActivity extends AppCompatActivity
 
     private AnimationListener animationListener;
 
+    private ArticleDetailFragment fragment;
+    private boolean mIsReturning;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,6 +63,10 @@ public class ArticleDetailActivity extends AppCompatActivity
         }
         setContentView(R.layout.activity_article_detail);
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            postponeEnterTransition();
+        }
+        setEnterSharedElementCallback(mCallback);
 
         getLoaderManager().initLoader(0, null, this);
 
@@ -114,8 +130,33 @@ public class ArticleDetailActivity extends AppCompatActivity
             }
         }
 
-        ActivityCompat.postponeEnterTransition(ArticleDetailActivity.this);
     }
+
+    private final SharedElementCallback mCallback = new SharedElementCallback() {
+        @Override
+        public void onMapSharedElements(List<String> names, Map<String, View> sharedElements) {
+            if (mIsReturning) {
+                ImageView sharedElement = fragment.getAlbumImage();
+                if (sharedElement == null) {
+                    // If shared element is null, then it has been scrolled off screen and
+                    // no longer visible. In this case we cancel the shared element transition by
+                    // removing the shared element from the shared elements map.
+                    names.clear();
+                    sharedElements.clear();
+                } else if (mStartId != mSelectedItemId) {
+                    // If the user has swiped to a different ViewPager page, then we need to
+                    // remove the old shared element and replace it with the new shared element
+                    // that should be transitioned instead.
+                    names.clear();
+                    sharedElements.clear();
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        names.add(sharedElement.getTransitionName());
+                        sharedElements.put(sharedElement.getTransitionName(), sharedElement);
+                    }
+                }
+            }
+        }
+    };
 
     @Override
     public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
@@ -163,7 +204,7 @@ public class ArticleDetailActivity extends AppCompatActivity
         @Override
         public void setPrimaryItem(ViewGroup container, int position, Object object) {
             super.setPrimaryItem(container, position, object);
-            ArticleDetailFragment fragment = (ArticleDetailFragment) object;
+            fragment = (ArticleDetailFragment) object;
             if (fragment != null) {
                 mSelectedItemUpButtonFloor = fragment.getUpButtonFloor();
                 updateUpButtonPosition();
@@ -194,5 +235,15 @@ public class ArticleDetailActivity extends AppCompatActivity
 
     public void animationNotifier(AnimationListener animationListener){
         this.animationListener = animationListener;
+    }
+
+    @Override
+    public void finishAfterTransition() {
+        mIsReturning = true;
+        Intent data = new Intent();
+        data.putExtra(EXTRA_STARTING_ALBUM_POSITION, mStartId);
+        data.putExtra(EXTRA_CURRENT_ALBUM_POSITION, mSelectedItemId);
+        setResult(RESULT_OK, data);
+        super.finishAfterTransition();
     }
 }

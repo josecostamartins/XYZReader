@@ -14,6 +14,7 @@ import android.media.Image;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.ActivityOptionsCompat;
+import android.support.v4.app.SharedElementCallback;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.AppCompatActivity;
@@ -35,6 +36,9 @@ import com.example.xyzreader.data.UpdaterService;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.Transformation;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * An activity representing a list of Articles. This activity has different presentations for
  * handset and tablet-size devices. On handsets, the activity presents a list of items, which when
@@ -49,19 +53,26 @@ public class ArticleListActivity extends AppCompatActivity implements
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private RecyclerView mRecyclerView;
     private Context mContext = ArticleListActivity.this;
-    private boolean invalidate = false;
+    private Bundle mTmpReenterState;
+    private Cursor mActivityCursor;
+
+    // taken from: https://github.com/alexjlockwood/adp-activity-transitions
+    // explanation: http://stackoverflow.com/questions/27304834/viewpager-fragments-shared-element-transitions/27321077#27321077
+    static final String EXTRA_STARTING_ALBUM_POSITION = "extra_starting_item_position";
+    static final String EXTRA_CURRENT_ALBUM_POSITION = "extra_current_item_position";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_article_list);
+        setExitSharedElementCallback(mCallback);
 
         mToolbar = (Toolbar) findViewById(R.id.toolbar);
 
         // set an exit transition
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             Explode explode = new Explode();
-            explode.setDuration(getResources().getInteger(R.integer.list_column_count));
+//            explode.setDuration(getResources().getInteger(R.integer.list_column_count));
             getWindow().setExitTransition(explode);
         }
 
@@ -117,6 +128,7 @@ public class ArticleListActivity extends AppCompatActivity implements
 
     @Override
     public void onLoadFinished(Loader<Cursor> cursorLoader, Cursor cursor) {
+        this.mActivityCursor = cursor;
         Adapter adapter = new Adapter(cursor, mContext);
         adapter.setHasStableIds(true);
         mRecyclerView.setAdapter(adapter);
@@ -128,6 +140,7 @@ public class ArticleListActivity extends AppCompatActivity implements
 
     @Override
     public void onLoaderReset(Loader<Cursor> loader) {
+        this.mActivityCursor = null;
         mRecyclerView.setAdapter(null);
     }
 
@@ -245,4 +258,49 @@ public class ArticleListActivity extends AppCompatActivity implements
             subtitleView = (TextView) view.findViewById(R.id.article_subtitle);
         }
     }
+
+    private final SharedElementCallback mCallback = new SharedElementCallback() {
+
+
+        @Override
+        public void onMapSharedElements(List<String> names, Map<String, View> sharedElements) {
+            if (mTmpReenterState != null) {
+                int startingPosition = mTmpReenterState.getInt(EXTRA_STARTING_ALBUM_POSITION);
+                int currentPosition = mTmpReenterState.getInt(EXTRA_CURRENT_ALBUM_POSITION);
+                if (startingPosition != currentPosition && mActivityCursor != null) {
+                    // If startingPosition != currentPosition the user must have swiped to a
+                    // different page in the DetailsActivity. We must update the shared element
+                    // so that the correct one falls into place.
+                    mActivityCursor.moveToPosition(currentPosition);
+
+                    String newTransitionName = String.valueOf(mActivityCursor.getLong(ArticleLoader.Query._ID));
+                    View newSharedElement = mRecyclerView.findViewWithTag(newTransitionName);
+                    if (newSharedElement != null) {
+                        names.clear();
+                        names.add(newTransitionName);
+                        sharedElements.clear();
+                        sharedElements.put(newTransitionName, newSharedElement);
+                    }
+                }
+
+                mTmpReenterState = null;
+            } else {
+                // If mTmpReenterState is null, then the activity is exiting.
+                View navigationBar = findViewById(android.R.id.navigationBarBackground);
+                View statusBar = findViewById(android.R.id.statusBarBackground);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    if (navigationBar != null) {
+
+                        names.add(navigationBar.getTransitionName());
+
+                        sharedElements.put(navigationBar.getTransitionName(), navigationBar);
+                    }
+                    if (statusBar != null) {
+                        names.add(statusBar.getTransitionName());
+                        sharedElements.put(statusBar.getTransitionName(), statusBar);
+                    }
+                }
+            }
+        }
+    };
 }
