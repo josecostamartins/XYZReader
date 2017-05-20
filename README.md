@@ -25,8 +25,8 @@ Application Screenshots
 ## Nexus 7
 ![Nexus 7 portrait List](https://github.com/josecostamartins/XYZReader/raw/master/images/nexus7_port.png)
 
-![Nexus 7 portrait Detail](https://github.com/josecostamartins/XYZReader/raw/master/images/nexus7_port.png)
+![Nexus 7 portrait Detail](https://github.com/josecostamartins/XYZReader/raw/master/images/nexus7_port2.png)
 
 ![Nexus 7 landscape List](https://github.com/josecostamartins/XYZReader/raw/master/images/nexus7_land.png)
 
-![Nexus 7 landscape Detail](https://github.com/josecostamartins/XYZReader/raw/master/images/nexus7_land.png)
+![Nexus 7 landscape Detail](https://github.com/josecostamartins/XYZReader/raw/master/images/nexus7_land2.png)
